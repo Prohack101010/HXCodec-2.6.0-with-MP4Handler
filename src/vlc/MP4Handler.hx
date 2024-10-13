@@ -10,7 +10,7 @@ import vlc.VLCBitmap;
  * Handles video playback.
  * Use bitmap to connect to a graphic or use `VideoSprite`.
  */
-class VideoHandler extends VLCBitmap
+class MP4Handler extends VLCBitmap
 {
 	public var canSkip:Bool = true;
 	public var canUseSound:Bool = true;
