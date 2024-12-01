@@ -25,27 +25,27 @@ class MP4Handler extends VLCBitmap
 	{
 		super();
 
-		onOpening = onVLCOpening;
-		onEndReached = onVLCEndReached;
-		onEncounteredError = onVLCEncounteredError;
+		onOpening = onVLCVideoReady;
+		onEndReached = finishVideo;
+		onEncounteredError = onVLCError;
 
 		FlxG.addChildBelowMouse(this, IndexModifier);
 	}
 
-	private function onVLCOpening():Void 
+	private function onVLCVideoReady():Void 
 	{        
 		trace("the video is opening!");
 		if (openingCallback != null)
 		    openingCallback();
 	}
 
-	private function onVLCEncounteredError():Void
+	private function onVLCError():Void
 	{
 		Lib.application.window.alert('Error cannot be specified', "VLC Error!");
-		onVLCEndReached();
+		finishVideo();
 	}
 
-	private function onVLCEndReached():Void
+	private function finishVideo():Void
 	{
 		trace("the video reached the end!");
 
@@ -109,10 +109,10 @@ class MP4Handler extends VLCBitmap
 	{
 		#if FLX_KEYBOARD
 		if (canSkip && (FlxG.keys.justPressed.SPACE #if android || FlxG.android.justReleased.BACK #end) && (isPlaying && isDisplaying))
-			onVLCEndReached();
+			finishVideo();
 		#elseif android
 		if (canSkip && FlxG.android.justReleased.BACK && (isPlaying && isDisplaying))
-			onVLCEndReached();
+			finishVideo();
 		#end
 
 		if (canUseAutoResize && (videoWidth > 0 && videoHeight > 0))
