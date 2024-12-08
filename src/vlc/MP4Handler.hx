@@ -25,26 +25,55 @@ class MP4Handler extends VLCBitmap
 	{
 		super();
 
-		onOpening = onVLCVideoReady;
-		onEndReached = finishVideo;
-		onEncounteredError = onVLCError;
+		onOpening = onVLCOpening;
+		onEndReachedLua = finishVideo;
+		onEndReached = onVLCEndReached;
+		onEncounteredError = onVLCEncounteredError;
 
 		FlxG.addChildBelowMouse(this, IndexModifier);
 	}
 
-	private function onVLCVideoReady():Void 
+	private function onVLCOpening():Void
 	{        
 		trace("the video is opening!");
 		if (openingCallback != null)
 		    openingCallback();
 	}
 
-	private function onVLCError():Void
+	private function onVLCEncounteredError():Void
 	{
 		Lib.application.window.alert('Error cannot be specified', "VLC Error!");
-		finishVideo();
+		onVLCEndReached();
 	}
 
+	private function onVLCEndReached():Void
+	{
+		trace("the video reached the end!");
+
+		if (FlxG.sound.music != null && pauseMusic)
+			FlxG.sound.music.resume();
+
+		if (FlxG.stage.hasEventListener(Event.ENTER_FRAME))
+			FlxG.stage.removeEventListener(Event.ENTER_FRAME, update);
+
+		if (FlxG.autoPause)
+		{
+			if (FlxG.signals.focusGained.has(resume))
+				FlxG.signals.focusGained.remove(resume);
+
+			if (FlxG.signals.focusLost.has(pause))
+				FlxG.signals.focusLost.remove(pause);
+		}
+
+		dispose();
+
+		FlxG.removeChild(this);
+
+		if (finishCallback != null)
+			finishCallback();
+	}
+	
+	// finishVideo for SScript
 	private function finishVideo():Void
 	{
 		trace("the video reached the end!");
@@ -109,10 +138,10 @@ class MP4Handler extends VLCBitmap
 	{
 		#if FLX_KEYBOARD
 		if (canSkip && (FlxG.keys.justPressed.SPACE #if android || FlxG.android.justReleased.BACK #end) && (isPlaying && isDisplaying))
-			finishVideo();
+			onVLCEndReached();
 		#elseif android
 		if (canSkip && FlxG.android.justReleased.BACK && (isPlaying && isDisplaying))
-			finishVideo();
+			onVLCEndReached();
 		#end
 
 		if (canUseAutoResize && (videoWidth > 0 && videoHeight > 0))

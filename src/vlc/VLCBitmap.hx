@@ -129,6 +129,7 @@ class VLCBitmap extends Bitmap
 	public var onPaused:Void->Void;
 	public var onStopped:Void->Void;
 	public var onEndReached:Void->Void;
+	public var onEndReachedLua:Void->Void;
 	public var onEncounteredError:Void->Void;
 	public var onForward:Void->Void;
 	public var onBackward:Void->Void;
@@ -267,6 +268,7 @@ class VLCBitmap extends Bitmap
 		onStopped = null;
 		onPaused = null;
 		onEndReached = null;
+		onEndReachedLua = null;
 		onEncounteredError = null;
 		onForward = null;
 		onBackward = null;
@@ -333,6 +335,8 @@ class VLCBitmap extends Bitmap
 			flags[4] = false;
 			if (onEndReached != null)
 				onEndReached();
+			if (onEndReachedLua != null)
+				onEndReachedLua();
 		}
 
 		if (flags[5])
