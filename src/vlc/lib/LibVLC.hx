@@ -10,7 +10,7 @@ import cpp.UInt8;
  * @author Tommy S
  */
 //
-@:buildXml('<include name="${haxelib:hxCodec}/vlc/lib/LibVLCBuild.xml" />')
+@:buildXml('<include name="${haxelib:hxCodec}/src/vlc/lib/LibVLCBuild.xml" />')
 
 @:include("LibVLC.h")
 @:unreflective
