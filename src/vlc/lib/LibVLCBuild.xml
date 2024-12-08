@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xml>
+    <files id='haxe'>
+        <compilervalue name="-I" value="${haxelib:hxCodec}/lib/vlc_2.5.1/include/" />
+        <compilervalue name="-I" value="${haxelib:hxCodec}/lib/vlc_2.5.1/src/" />
+    </files>
+
+    <target id="haxe">
+        <section if="windows">
+			<lib name='${haxelib:hxCodec}/lib/vlc_2.5.1/lib/Windows/libvlc.lib' if='windows'/>
+			<lib name='${haxelib:hxCodec}/lib/vlc_2.5.1/lib/Windows/libvlccore.lib' if='windows'/>
+        </section>
+        <section if="linux">
+			<lib name='${haxelib:hxCodec}/lib/vlc_2.5.1/lib/Linux/libvlc.so.5' if='linux'/>
+			<lib name='${haxelib:hxCodec}/lib/vlc_2.5.1/lib/Linux/libvlccore.so.9' if='linux'/>
+        </section>
+        <section if="android">
+            <lib name='${haxelib:hxCodec}/ndll/Android_2.5.1/libvlc-v7.so' if='HXCPP_ARMV7' />
+            <lib name='${haxelib:hxCodec}/ndll/Android_2.5.1/libvlc-64.so' if='HXCPP_ARM64' />
+        </section>
+    </target>
+</xml>
