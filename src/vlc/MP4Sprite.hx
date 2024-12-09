@@ -1,59 +1,80 @@
-package vlc;
+package;
 
 import flixel.FlxSprite;
+import flixel.graphics.FlxGraphic;
+import flixel.util.FlxColor;
+import vlc.MP4Handler;
 
 /**
- * This class will play the video in the form of a FlxSprite, which you can control.
+ * This class allows you to play videos using sprites (FlxSprite).
  */
 class MP4Sprite extends FlxSprite
 {
-	public var readyCallback:Void->Void;
-	public var finishCallback:Void->Void;
+	public var bitmap:MP4Handler;
+	public var canvasWidth:Null<Int>;
+	public var canvasHeight:Null<Int>;
+	public var fillScreen:Bool = false;
 
-	var video:MP4Handler;
+	public var openingCallback:Void->Void = null;
+	public var finishCallback:Void->Void = null;
 
-	public function new(x:Float = 0, y:Float = 0, width:Float = 320, height:Float = 240, autoScale:Bool = true)
+	public function new(X:Float = 0, Y:Float = 0)
 	{
-		super(x, y);
+		super(X, Y);
 
-		video = new MP4Handler(width, height, autoScale);
-		video.alpha = 0;
+		makeGraphic(1, 1, FlxColor.TRANSPARENT);
 
-		video.readyCallback = function()
+		bitmap = new MP4Handler();
+		bitmap.canUseAutoResize = false;
+		bitmap.alpha = 0;
+		bitmap.openingCallback = function()
 		{
-			loadGraphic(video.bitmapData);
-
-			if (readyCallback != null)
-				readyCallback();
+			if (openingCallback != null)
+				openingCallback();
 		}
-
-		video.finishCallback = function()
+		bitmap.finishCallback = function()
 		{
+			oneTime = false;
 			if (finishCallback != null)
 				finishCallback();
 
 			kill();
-		};
+		}
+	}
+
+	private var oneTime:Bool = false;
+	override function update(elapsed:Float)
+	{
+		super.update(elapsed);
+
+		if (bitmap.isPlaying && bitmap.isDisplaying && bitmap.bitmapData != null && !oneTime)
+		{
+			var graphic:FlxGraphic = FlxG.bitmap.add(bitmap.bitmapData, false, '');
+			if (graphic.imageFrame.frame == null)
+			{
+				trace('the frame of the image is null?');
+				return;
+			}
+
+			loadGraphic(graphic);
+			if (canvasWidth != null && canvasHeight != null)
+			{
+				setGraphicSize(canvasWidth, canvasHeight);
+				updateHitbox();
+
+				var size:Float = (fillScreen ? Math.max : Math.min)(sprite.scale.x, sprite.scale.y);
+				scale.set(size, size); // lol
+			}
+			oneTime = true;
+		}
 	}
 
 	/**
 	 * Native video support for Flixel & OpenFL
-	 * @param path Example: `your/video/here.mp4`
-	 * @param repeat Repeat the video.
-	 * @param pauseMusic Pause music until done video.
+	 * @param Path Example: `your/video/here.mp4`
+	 * @param Loop Loop the video.
+	 * @param PauseMusic Pause music until the video ends.
 	 */
-	public function playVideo(path:String, ?repeat:Bool = false, pauseMusic:Bool = false)
-	{
-		video.playVideo(path, repeat, pauseMusic);
-	}
-
-	public function pause()
-	{
-		video.pause();
-	}
-
-	public function resume()
-	{
-		video.resume();
-	}
+	public function playVideo(Path:String, Loop:Bool = false, PauseMusic:Bool = false):Void
+		bitmap.playVideo(Path, Loop, PauseMusic);
 }

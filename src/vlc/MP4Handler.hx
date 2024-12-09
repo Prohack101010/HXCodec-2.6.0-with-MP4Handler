@@ -1,123 +1,148 @@
 package vlc;
 
-import openfl.events.Event;
 import flixel.FlxG;
-import vlc.bitmap.VlcBitmap;
+import openfl.Lib;
+import openfl.events.Event;
+import sys.FileSystem;
+import vlc.VLCBitmap;
 
 /**
- * Play a video using cpp.
- * Use bitmap to connect to a graphic or use `MP4Sprite`.
+ * Handles video playback.
+ * Use bitmap to connect to a graphic or use `VideoSprite`.
  */
-class MP4Handler extends VlcBitmap
+class MP4Handler extends VLCBitmap
 {
-	public var readyCallback:Void->Void;
-	public var finishCallback:Void->Void;
+	public var canSkip:Bool = true;
+	public var canUseSound:Bool = true;
+	public var canUseAutoResize:Bool = true;
 
-	var pauseMusic:Bool;
+	public var openingCallback:Void->Void = null;
+	public var finishCallback:Void->Void = null;
 
-	public function new(width:Float = 320, height:Float = 240, autoScale:Bool = true)
+	private var pauseMusic:Bool = false;
+
+	public function new(IndexModifier:Int = 0):Void
 	{
-		super(width, height, autoScale);
+		super();
 
-		onVideoReady = onVLCVideoReady;
-		onComplete = finishVideo;
-		onError = onVLCError;
+		onOpening = onVLCVideoReady;
+		onEndReached = finishVideo;
+		onEncounteredError = onVLCError;
 
-		FlxG.addChildBelowMouse(this);
-
-		FlxG.stage.addEventListener(Event.ENTER_FRAME, update);
-
-		FlxG.signals.focusGained.add(function()
-		{
-			resume();
-		});
-		FlxG.signals.focusLost.add(function()
-		{
-			pause();
-		});
+		FlxG.addChildBelowMouse(this, IndexModifier);
 	}
 
-	function update(e:Event)
-	{
-		if ((FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) && isPlaying)
-			finishVideo();
-
-		if (FlxG.sound.muted || FlxG.sound.volume <= 0)
-			volume = 0;
-		else
-			volume = FlxG.sound.volume + 0.4;
+	private function onVLCVideoReady():Void 
+	{        
+		trace("the video is opening!");
+		if (openingCallback != null)
+		    openingCallback();
 	}
 
-	#if sys
-	function checkFile(fileName:String):String
+	private function onVLCError():Void
 	{
-		#if !android
-		var pDir = "";
-		var appDir = "file:///" + Sys.getCwd() + "/";
-
-		if (fileName.indexOf(":") == -1) // Not a path
-			pDir = appDir;
-		else if (fileName.indexOf("file://") == -1 || fileName.indexOf("http") == -1) // C:, D: etc? ..missing "file:///" ?
-			pDir = "file:///";
-
-		return pDir + fileName;
-		#else
-		return "file://" + fileName;
-		#end
-	}
-	#end
-
-	function onVLCVideoReady()
-	{
-		trace("Video loaded!");
-
-		if (readyCallback != null)
-			readyCallback();
+		Lib.application.window.alert('Error cannot be specified', "VLC Error!");
+		finishVideo();
 	}
 
-	function onVLCError()
+	private function finishVideo():Void
 	{
-		// TODO: Catch the error
-		throw "VLC caught an error!";
-	}
+		trace("the video reached the end!");
 
-	public function finishVideo()
-	{
 		if (FlxG.sound.music != null && pauseMusic)
 			FlxG.sound.music.resume();
 
-		FlxG.stage.removeEventListener(Event.ENTER_FRAME, update);
+		if (FlxG.stage.hasEventListener(Event.ENTER_FRAME))
+			FlxG.stage.removeEventListener(Event.ENTER_FRAME, update);
+
+		if (FlxG.autoPause)
+		{
+			if (FlxG.signals.focusGained.has(resume))
+				FlxG.signals.focusGained.remove(resume);
+
+			if (FlxG.signals.focusLost.has(pause))
+				FlxG.signals.focusLost.remove(pause);
+		}
 
 		dispose();
 
-		if (FlxG.game.contains(this))
-		{
-			FlxG.game.removeChild(this);
+		FlxG.removeChild(this);
 
-			if (finishCallback != null)
-				finishCallback();
-		}
+		if (finishCallback != null)
+			finishCallback();
 	}
 
 	/**
-	 * Native video support for Flixel & OpenFL
-	 * @param path Example: `your/video/here.mp4`
-	 * @param repeat Repeat the video.
-	 * @param pauseMusic Pause music until done video.
+	 * Plays a video.
+	 *
+	 * @param Path Example: `your/video/here.mp4`
+	 * @param Loop Loop the video.
+	 * @param PauseMusic Pause music until the video ends.
 	 */
-	public function playVideo(path:String, ?repeat:Bool = false, pauseMusic:Bool = false)
+	public function playVideo(Path:String, Loop:Bool = false, PauseMusic:Bool = false):Void
 	{
-		this.pauseMusic = pauseMusic;
+		pauseMusic = PauseMusic;
 
-		if (FlxG.sound.music != null && pauseMusic)
+		if (FlxG.sound.music != null && PauseMusic)
 			FlxG.sound.music.pause();
 
-		#if sys
-		play(checkFile(path));
+		// Probably won't help with anything but ok.
+		volume = Std.int(#if FLX_SOUND_SYSTEM ((FlxG.sound.muted || !canUseSound) ? 0 : 1) * #end FlxG.sound.volume * 100);
 
-		this.repeat = repeat ? -1 : 0;
-		#else
-		throw "Doesn't support sys";
+		FlxG.stage.addEventListener(Event.ENTER_FRAME, update);
+
+		if (FlxG.autoPause)
+		{
+			FlxG.signals.focusGained.add(resume);
+			FlxG.signals.focusLost.add(pause);
+		}
+
+		// in case if you want to use another dir then the application one.
+		// android can already do this, it can't use application's storage.
+		if (FileSystem.exists(Sys.getCwd() + Path))
+			play(Sys.getCwd() + Path, Loop);
+		else
+			play(Path, Loop);
+	}
+
+	private function update(?E:Event):Void
+	{
+		#if FLX_KEYBOARD
+		if (canSkip && (FlxG.keys.justPressed.SPACE #if android || FlxG.android.justReleased.BACK #end) && (isPlaying && isDisplaying))
+			finishVideo();
+		#elseif android
+		if (canSkip && FlxG.android.justReleased.BACK && (isPlaying && isDisplaying))
+			finishVideo();
 		#end
+
+		if (canUseAutoResize && (videoWidth > 0 && videoHeight > 0))
+		{
+			width = calcSize(0);
+			height = calcSize(1);
+		}
+
+		volume = Std.int(#if FLX_SOUND_SYSTEM ((FlxG.sound.muted || !canUseSound) ? 0 : 1) * #end FlxG.sound.volume * 100);
+	}
+
+	public function calcSize(Ind:Int):Int
+	{
+		var appliedWidth:Float = Lib.current.stage.stageHeight * (FlxG.width / FlxG.height);
+		var appliedHeight:Float = Lib.current.stage.stageWidth * (FlxG.height / FlxG.width);
+
+		if (appliedHeight > Lib.current.stage.stageHeight)
+			appliedHeight = Lib.current.stage.stageHeight;
+
+		if (appliedWidth > Lib.current.stage.stageWidth)
+			appliedWidth = Lib.current.stage.stageWidth;
+
+		switch (Ind)
+		{
+			case 0:
+				return Std.int(appliedWidth);
+			case 1:
+				return Std.int(appliedHeight);
+		}
+
+		return 0;
 	}
 }
